@@ -1,4 +1,5 @@
 const Hero = require("../models/hero");
+const Pet = require("../models/pet"); 
 const asyncHandler = require("express-async-handler");
 const { body, validationResult } = require("express-validator");
 
@@ -46,33 +47,34 @@ exports.hero_delete = asyncHandler(async (req, res, next) => {
   res.json({ message: "Herói removido com sucesso" });
 });
 
-// Controller para atualizar o herói com petId
-// Atualizando o herói com o petId no backend
-exports.hero_update = asyncHandler(async (req, res, next) => {
-  const { name, petId } = req.body;
-  const hero = await Hero.findById(req.params.id);
-
-  if (!hero) {
-    return res.status(404).json({ error: "Herói não encontrado" });
-  }
-
-  hero.name = name;
-
-  // Verifica se o petId foi fornecido
-  if (petId) {
-    // Verifica se o petId é válido (existe no banco)
-    const pet = await Pet.findById(petId);
-    if (!pet) {
-      return res.status(400).json({ error: "Pet não encontrado" });
-    }
-    hero.petId = petId; // Atualiza o petId do herói
-  }
-
+exports.hero_update = asyncHandler(async (req, res) => {
   try {
-    const updatedHero = await hero.save();
+    const { name, petId } = req.body;
+    const heroId = req.params.id;
+
+    // Verifica se o herói existe antes de atualizar
+    const hero = await Hero.findById(heroId);
+    if (!hero) {
+      return res.status(404).json({ error: "Herói não encontrado" });
+    }
+
+    // Se houver petId, verifica se o pet existe
+    if (petId) {
+      const petExists = await Pet.exists({ _id: petId });
+      if (!petExists) {
+        return res.status(400).json({ error: "Pet não encontrado" });
+      }
+    }
+
+    // Atualiza os campos necessários
+    hero.name = name;
+    hero.petId = petId || null; // 🔹 Se petId for undefined, define como null
+
+    const updatedHero = await hero.save(); // 🔹 Salva o herói atualizado
     res.json(updatedHero);
   } catch (error) {
-    return res.status(500).json({ error: "Erro ao atualizar herói" });
+    console.error("Erro ao atualizar herói:", error);
+    res.status(500).json({ error: "Erro ao atualizar herói" });
   }
 });
 
